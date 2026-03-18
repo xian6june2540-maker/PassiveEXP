@@ -1,0 +1,34 @@
+name: PassiveEXP
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 🌟 หุ่นยนต์จะตื่นมาทำงานทุกๆ ต้นชั่วโมง
+  workflow_dispatch:      # 🌟 กดสั่งให้ทำงานเองแบบ Manual ได้
+
+permissions:
+  contents: write
+
+jobs:
+  sync-and-ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 🌟 ส่วนที่ 1: สกิดให้ Supabase ตื่น และสั่งให้ SQL บวก EXP ให้เด็กๆ
+      - name: Sync Passive EXP via SQL RPC
+        run: |
+          curl -X POST "${{ secrets.SUPABASE_URL }}/rest/v1/rpc/cron_sync_passive_exp" \
+          -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
+          -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" \
+          -H "Content-Type: application/json"
+
+      # 🌟 ส่วนที่ 2: ป้องกัน GitHub Actions หลับ (Auto-commit)
+      - name: Auto-commit to keep repo active
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          echo "Last Sync: $(date)" > keepalive.txt
+          git add keepalive.txt
+          git commit -m "Robot PassiveEXP: Syncing and keeping repo alive [$(date)]" || exit 0
+          git push
